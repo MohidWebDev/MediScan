@@ -1,0 +1,1389 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MediScan — Disease Detection System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=DM+Mono:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* ── CSS Variables ────────────────────────────────────── */
+      :root {
+        --black: #0a0a0a;
+        --void: #050505;
+        --gray-900: #111111;
+        --gray-800: #1a1a1a;
+        --gray-700: #252525;
+        --gray-600: #333333;
+        --gray-500: #555555;
+        --gray-400: #888888;
+        --gray-300: #aaaaaa;
+        --gray-100: #e8e8e8;
+        --gold: #c9a84c;
+        --gold-light: #e8c96e;
+        --gold-dim: #7a6330;
+        --gold-glow: rgba(201, 168, 76, 0.15);
+        --gold-line: rgba(201, 168, 76, 0.35);
+        --white: #f5f5f0;
+        --red-dim: #6b2222;
+        --red-bright: #e05555;
+        --font-serif: "Cormorant Garamond", Georgia, serif;
+        --font-mono: "DM Mono", monospace;
+        --radius: 4px;
+        --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      /* ── Reset & Base ─────────────────────────────────────── */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        background: var(--void);
+        color: var(--gray-100);
+        font-family: var(--font-mono);
+        font-size: 13px;
+        font-weight: 300;
+        min-height: 100vh;
+        overflow-x: hidden;
+        cursor: default;
+      }
+
+      /* ── Noise texture overlay ────────────────────────────── */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0.6;
+      }
+
+      /* ── Grid background ──────────────────────────────────── */
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(201, 168, 76, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(201, 168, 76, 0.03) 1px, transparent 1px);
+        background-size: 60px 60px;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* ── Layout ───────────────────────────────────────────── */
+      .page {
+        position: relative;
+        z-index: 1;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0 20px 80px;
+      }
+
+      /* ── Header ───────────────────────────────────────────── */
+      header {
+        width: 100%;
+        max-width: 860px;
+        padding: 56px 0 40px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+        animation: fadeDown 0.8s ease both;
+      }
+
+      .logo-line {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 14px;
+      }
+
+      .logo-icon {
+        width: 48px;
+        height: 48px;
+        border: 1px solid var(--gold-line);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(
+          circle at center,
+          rgba(201, 168, 76, 0.08),
+          transparent 70%
+        );
+        flex-shrink: 0;
+      }
+
+      .logo-icon svg {
+        width: 24px;
+        height: 24px;
+        stroke: var(--gold);
+        fill: none;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      h1 {
+        font-family: var(--font-serif);
+        font-size: clamp(36px, 6vw, 58px);
+        font-weight: 300;
+        letter-spacing: 0.08em;
+        color: var(--white);
+        line-height: 1;
+      }
+
+      h1 span {
+        color: var(--gold);
+        font-style: italic;
+      }
+
+      .subtitle {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--gray-500);
+        margin-top: 8px;
+      }
+
+      .gold-rule {
+        width: 120px;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--gold),
+          transparent
+        );
+        margin: 24px auto 0;
+      }
+
+      /* ── Main card ────────────────────────────────────────── */
+      .card {
+        width: 100%;
+        max-width: 860px;
+        background: var(--gray-900);
+        border: 1px solid var(--gray-700);
+        border-radius: var(--radius);
+        overflow: hidden;
+        animation: fadeUp 0.9s 0.15s ease both;
+        box-shadow:
+          0 0 0 1px rgba(201, 168, 76, 0.06),
+          0 32px 80px rgba(0, 0, 0, 0.6),
+          0 0 60px rgba(201, 168, 76, 0.03);
+      }
+
+      /* ── Tab bar ──────────────────────────────────────────── */
+      .tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border-bottom: 1px solid var(--gray-700);
+      }
+
+      .tab-btn {
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        padding: 18px 12px;
+        color: var(--gray-500);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: -1px;
+      }
+
+      .tab-btn svg {
+        width: 14px;
+        height: 14px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex-shrink: 0;
+      }
+
+      .tab-btn:hover {
+        color: var(--gray-300);
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .tab-btn.active {
+        color: var(--gold);
+        border-bottom-color: var(--gold);
+        background: rgba(201, 168, 76, 0.04);
+      }
+
+      /* ── Panels ───────────────────────────────────────────── */
+      .panels {
+        padding: 36px 40px 40px;
+      }
+
+      .panel {
+        display: none;
+      }
+      .panel.active {
+        display: block;
+        animation: panelIn 0.35s ease both;
+      }
+
+      @keyframes panelIn {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .panel-label {
+        font-size: 10px;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: var(--gold-dim);
+        margin-bottom: 16px;
+      }
+
+      /* ── Text input ───────────────────────────────────────── */
+      .symptom-wrap {
+        position: relative;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 140px;
+        background: var(--gray-800);
+        border: 1px solid var(--gray-600);
+        border-radius: var(--radius);
+        color: var(--gray-100);
+        font-family: var(--font-mono);
+        font-size: 13px;
+        font-weight: 300;
+        line-height: 1.7;
+        padding: 16px 18px;
+        resize: vertical;
+        outline: none;
+        transition:
+          border-color var(--transition),
+          box-shadow var(--transition);
+        caret-color: var(--gold);
+      }
+
+      textarea::placeholder {
+        color: var(--gray-500);
+      }
+
+      textarea:focus {
+        border-color: var(--gold-dim);
+        box-shadow:
+          0 0 0 3px var(--gold-glow),
+          inset 0 1px 3px rgba(0, 0, 0, 0.3);
+      }
+
+      .char-hint {
+        position: absolute;
+        bottom: 10px;
+        right: 14px;
+        font-size: 10px;
+        color: var(--gray-600);
+        pointer-events: none;
+        transition: color 0.2s;
+      }
+
+      /* ── File upload area ─────────────────────────────────── */
+      .drop-zone {
+        border: 1px dashed var(--gray-600);
+        border-radius: var(--radius);
+        padding: 48px 24px;
+        text-align: center;
+        cursor: pointer;
+        transition: all var(--transition);
+        background: var(--gray-800);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .drop-zone::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          ellipse at center,
+          var(--gold-glow),
+          transparent 70%
+        );
+        opacity: 0;
+        transition: opacity var(--transition);
+      }
+
+      .drop-zone:hover::before,
+      .drop-zone.drag-over::before {
+        opacity: 1;
+      }
+
+      .drop-zone:hover,
+      .drop-zone.drag-over {
+        border-color: var(--gold-dim);
+        background: rgba(201, 168, 76, 0.03);
+      }
+
+      .drop-zone input[type="file"] {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        font-size: 0;
+      }
+
+      .drop-icon {
+        width: 40px;
+        height: 40px;
+        margin: 0 auto 14px;
+        stroke: var(--gray-500);
+        fill: none;
+        stroke-width: 1.2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        transition: stroke var(--transition);
+      }
+
+      .drop-zone:hover .drop-icon,
+      .drop-zone.drag-over .drop-icon {
+        stroke: var(--gold);
+      }
+
+      .drop-title {
+        font-family: var(--font-serif);
+        font-size: 18px;
+        font-weight: 300;
+        color: var(--gray-300);
+        margin-bottom: 6px;
+      }
+
+      .drop-sub {
+        font-size: 11px;
+        color: var(--gray-500);
+        letter-spacing: 0.08em;
+      }
+
+      .file-chosen {
+        margin-top: 16px;
+        padding: 10px 16px;
+        background: rgba(201, 168, 76, 0.08);
+        border: 1px solid var(--gold-dim);
+        border-radius: var(--radius);
+        font-size: 12px;
+        color: var(--gold-light);
+        display: none;
+        align-items: center;
+        gap: 8px;
+        text-align: left;
+      }
+
+      .file-chosen.visible {
+        display: flex;
+      }
+
+      .file-chosen svg {
+        width: 14px;
+        height: 14px;
+        stroke: var(--gold);
+        fill: none;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex-shrink: 0;
+      }
+
+      /* ── Action button ────────────────────────────────────── */
+      .btn-row {
+        margin-top: 24px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .btn-analyze {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 13px 32px;
+        background: linear-gradient(135deg, #b8922a, #c9a84c, #b8922a);
+        background-size: 200% 100%;
+        background-position: 0% 0%;
+        color: var(--black);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        border: none;
+        border-radius: var(--radius);
+        cursor: pointer;
+        transition:
+          background-position 0.4s ease,
+          box-shadow var(--transition),
+          transform 0.15s;
+        box-shadow: 0 4px 20px rgba(201, 168, 76, 0.2);
+      }
+
+      .btn-analyze svg {
+        width: 14px;
+        height: 14px;
+        stroke: var(--black);
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .btn-analyze:hover {
+        background-position: 100% 0%;
+        box-shadow: 0 6px 28px rgba(201, 168, 76, 0.35);
+        transform: translateY(-1px);
+      }
+
+      .btn-analyze:active {
+        transform: translateY(0);
+      }
+
+      .btn-analyze:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .btn-clear {
+        background: none;
+        border: 1px solid var(--gray-700);
+        color: var(--gray-500);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        padding: 13px 20px;
+        border-radius: var(--radius);
+        cursor: pointer;
+        transition: all var(--transition);
+      }
+
+      .btn-clear:hover {
+        border-color: var(--gray-500);
+        color: var(--gray-300);
+      }
+
+      /* ── Loading state ────────────────────────────────────── */
+      .loader {
+        display: none;
+        align-items: center;
+        gap: 10px;
+        color: var(--gold-dim);
+        font-size: 11px;
+        letter-spacing: 0.14em;
+      }
+
+      .loader.active {
+        display: flex;
+      }
+
+      .spinner {
+        width: 16px;
+        height: 16px;
+        border: 1.5px solid var(--gray-700);
+        border-top-color: var(--gold);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* ── Results section ──────────────────────────────────── */
+      .results-section {
+        margin-top: 40px;
+        display: none;
+        animation: fadeUp 0.5s ease both;
+      }
+
+      .results-section.visible {
+        display: block;
+      }
+
+      .results-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--gray-700);
+      }
+
+      .results-title {
+        font-family: var(--font-serif);
+        font-size: 22px;
+        font-weight: 300;
+        color: var(--white);
+        letter-spacing: 0.04em;
+      }
+
+      .results-title span {
+        color: var(--gold);
+        font-style: italic;
+      }
+
+      .results-source {
+        font-size: 10px;
+        color: var(--gray-500);
+        letter-spacing: 0.12em;
+      }
+
+      /* Excerpt box */
+      .excerpt-box {
+        background: var(--gray-800);
+        border: 1px solid var(--gray-700);
+        border-left: 3px solid var(--gold-dim);
+        border-radius: var(--radius);
+        padding: 14px 18px;
+        margin-bottom: 28px;
+        font-size: 12px;
+        color: var(--gray-400);
+        line-height: 1.7;
+      }
+
+      .excerpt-label {
+        font-size: 10px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--gold-dim);
+        margin-bottom: 6px;
+      }
+
+      /* Disease cards */
+      .disease-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .disease-card {
+        background: var(--gray-800);
+        border: 1px solid var(--gray-700);
+        border-radius: var(--radius);
+        padding: 20px 22px;
+        position: relative;
+        overflow: hidden;
+        transition:
+          border-color var(--transition),
+          box-shadow var(--transition);
+      }
+
+      .disease-card::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: var(--gray-600);
+        transition: background var(--transition);
+      }
+
+      .disease-card.rank-1::before {
+        background: var(--gold);
+      }
+      .disease-card.rank-2::before {
+        background: var(--gold-dim);
+      }
+      .disease-card.rank-3::before {
+        background: var(--gray-600);
+      }
+
+      .disease-card.rank-1 {
+        border-color: rgba(201, 168, 76, 0.3);
+        box-shadow: 0 0 30px rgba(201, 168, 76, 0.07);
+      }
+
+      .disease-card:hover {
+        border-color: var(--gray-600);
+      }
+      .disease-card.rank-1:hover {
+        border-color: var(--gold-dim);
+      }
+
+      .card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+
+      .rank-badge {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--gray-700);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        color: var(--gray-400);
+        flex-shrink: 0;
+        font-weight: 500;
+      }
+
+      .rank-1 .rank-badge {
+        background: var(--gold-glow);
+        color: var(--gold);
+        border: 1px solid var(--gold-dim);
+      }
+
+      .disease-name {
+        font-family: var(--font-serif);
+        font-size: 20px;
+        font-weight: 400;
+        color: var(--white);
+        flex: 1;
+        margin: 0 14px;
+        letter-spacing: 0.02em;
+      }
+
+      .rank-1 .disease-name {
+        color: var(--gold-light);
+      }
+
+      .confidence-pct {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--gray-400);
+        letter-spacing: 0.04em;
+      }
+
+      .rank-1 .confidence-pct {
+        color: var(--gold);
+      }
+
+      /* Confidence bar */
+      .bar-track {
+        height: 3px;
+        background: var(--gray-700);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+
+      .bar-fill {
+        height: 100%;
+        width: 0%; /* animated via JS */
+        border-radius: 2px;
+        background: var(--gray-600);
+        transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .rank-1 .bar-fill {
+        background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+      }
+      .rank-2 .bar-fill {
+        background: var(--gold-dim);
+      }
+
+      /* ── Error box ────────────────────────────────────────── */
+      .error-box {
+        background: rgba(107, 34, 34, 0.25);
+        border: 1px solid var(--red-dim);
+        border-radius: var(--radius);
+        padding: 16px 20px;
+        margin-top: 24px;
+        display: none;
+        align-items: flex-start;
+        gap: 12px;
+        animation: fadeUp 0.3s ease both;
+      }
+
+      .error-box.visible {
+        display: flex;
+      }
+
+      .error-box svg {
+        width: 16px;
+        height: 16px;
+        stroke: var(--red-bright);
+        fill: none;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+
+      .error-text {
+        font-size: 12px;
+        color: #e08080;
+        line-height: 1.6;
+      }
+
+      /* ── Disclaimer ───────────────────────────────────────── */
+      .disclaimer {
+        margin-top: 32px;
+        padding: 16px 20px;
+        border: 1px solid var(--gray-700);
+        border-top: 1px solid var(--gold-dim);
+        border-radius: var(--radius);
+        background: rgba(201, 168, 76, 0.03);
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+      }
+
+      .disclaimer svg {
+        width: 14px;
+        height: 14px;
+        stroke: var(--gold-dim);
+        fill: none;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+
+      .disclaimer p {
+        font-size: 11px;
+        color: var(--gray-500);
+        line-height: 1.65;
+        letter-spacing: 0.02em;
+      }
+
+      .disclaimer strong {
+        color: var(--gold-dim);
+        font-weight: 400;
+      }
+
+      /* ── Footer ───────────────────────────────────────────── */
+      footer {
+        margin-top: 48px;
+        text-align: center;
+        font-size: 10px;
+        color: var(--gray-600);
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        animation: fadeUp 1s 0.4s ease both;
+      }
+
+      footer span {
+        color: var(--gold-dim);
+      }
+
+      /* ── Animations ───────────────────────────────────────── */
+      @keyframes fadeDown {
+        from {
+          opacity: 0;
+          transform: translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ── Scrollbar ────────────────────────────────────────── */
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--void);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--gray-700);
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--gold-dim);
+      }
+
+      /* ── Responsive ───────────────────────────────────────── */
+      @media (max-width: 600px) {
+        .panels {
+          padding: 24px 20px 28px;
+        }
+        .tab-btn {
+          font-size: 9px;
+          gap: 5px;
+          padding: 14px 8px;
+        }
+        .disease-name {
+          font-size: 17px;
+        }
+        .btn-row {
+          flex-wrap: wrap;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="page">
+      <!-- ── Header ── -->
+      <header>
+        <div class="logo-line">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z" />
+              <path d="M12 8v4M12 16h.01" />
+              <path d="M8 12h8" />
+            </svg>
+          </div>
+          <h1>Medi<span>Scan</span></h1>
+        </div>
+        <p class="subtitle">Disease Detection · Decision Support Prototype</p>
+        <div class="gold-rule"></div>
+      </header>
+
+      <!-- ── Main card ── -->
+      <div class="card">
+        <!-- Tab bar -->
+        <div class="tabs" role="tablist">
+          <button
+            class="tab-btn active"
+            data-tab="text"
+            role="tab"
+            aria-selected="true"
+          >
+            <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10" /></svg>
+            Symptoms Text
+          </button>
+          <button
+            class="tab-btn"
+            data-tab="pdf"
+            role="tab"
+            aria-selected="false"
+          >
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+              />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+            PDF Report
+          </button>
+          <button
+            class="tab-btn"
+            data-tab="image"
+            role="tab"
+            aria-selected="false"
+          >
+            <svg viewBox="0 0 24 24">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+            Scan / Image
+          </button>
+        </div>
+
+        <!-- Panels -->
+        <div class="panels">
+          <!-- Text panel -->
+          <div class="panel active" id="panel-text">
+            <p class="panel-label">// Enter symptoms or clinical notes</p>
+            <div class="symptom-wrap">
+              <textarea
+                id="symptom-input"
+                placeholder="e.g. fever, severe headache, loss of smell, dry cough, fatigue, body aches…"
+                maxlength="2000"
+                spellcheck="false"
+              ></textarea>
+              <span class="char-hint" id="char-counter">0 / 2000</span>
+            </div>
+            <div class="btn-row">
+              <button class="btn-analyze" id="btn-text">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                Analyze
+              </button>
+              <button class="btn-clear" id="btn-clear-text">Clear</button>
+              <div class="loader" id="loader-text">
+                <div class="spinner"></div>
+                <span>Processing…</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- PDF panel -->
+          <div class="panel" id="panel-pdf">
+            <p class="panel-label">// Upload a medical report PDF</p>
+            <div class="drop-zone" id="drop-pdf">
+              <input type="file" id="file-pdf" accept=".pdf" />
+              <svg class="drop-icon" viewBox="0 0 24 24">
+                <path
+                  d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="12" y1="18" x2="12" y2="12" />
+                <polyline points="9 15 12 12 15 15" />
+              </svg>
+              <p class="drop-title">Drop your PDF here</p>
+              <p class="drop-sub">
+                or click to browse — native &amp; scanned PDFs supported
+              </p>
+            </div>
+            <div class="file-chosen" id="chosen-pdf">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+              <span id="chosen-pdf-name">—</span>
+            </div>
+            <div class="btn-row">
+              <button class="btn-analyze" id="btn-pdf" disabled>
+                <svg viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                Analyze PDF
+              </button>
+              <button class="btn-clear" id="btn-clear-pdf">Clear</button>
+              <div class="loader" id="loader-pdf">
+                <div class="spinner"></div>
+                <span>Extracting &amp; analyzing…</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Image panel -->
+          <div class="panel" id="panel-image">
+            <p class="panel-label">
+              // Upload a scanned report or medical image
+            </p>
+            <div class="drop-zone" id="drop-image">
+              <input
+                type="file"
+                id="file-image"
+                accept=".png,.jpg,.jpeg,.tiff,.bmp,.webp"
+              />
+              <svg class="drop-icon" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+                <line x1="12" y1="18" x2="12" y2="12" />
+                <polyline points="9 15 12 12 15 15" />
+              </svg>
+              <p class="drop-title">Drop your image here</p>
+              <p class="drop-sub">PNG · JPG · JPEG · TIFF · BMP · WEBP</p>
+            </div>
+            <div class="file-chosen" id="chosen-image">
+              <svg viewBox="0 0 24 24">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              <span id="chosen-image-name">—</span>
+            </div>
+            <div class="btn-row">
+              <button class="btn-analyze" id="btn-image" disabled>
+                <svg viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                Analyze Image
+              </button>
+              <button class="btn-clear" id="btn-clear-image">Clear</button>
+              <div class="loader" id="loader-image">
+                <div class="spinner"></div>
+                <span>Running OCR &amp; analyzing…</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Error box (shared) ── -->
+          <div class="error-box" id="error-box">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <p class="error-text" id="error-msg">An error occurred.</p>
+          </div>
+
+          <!-- ── Results (shared) ── -->
+          <div class="results-section" id="results-section">
+            <div class="results-header">
+              <h2 class="results-title">Analysis <span>Results</span></h2>
+              <span class="results-source" id="results-source">—</span>
+            </div>
+
+            <div class="excerpt-box">
+              <div class="excerpt-label">// Extracted text excerpt</div>
+              <div id="results-excerpt">—</div>
+            </div>
+
+            <div class="disease-cards" id="disease-cards">
+              <!-- Injected by JS -->
+            </div>
+
+            <div class="disclaimer">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+                />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <p>
+                <strong>Disclaimer:</strong> MediScan is a prototype for
+                educational and research purposes only. Predictions are derived
+                from statistical patterns and should <strong>not</strong> be
+                used for clinical diagnosis or as a substitute for professional
+                medical advice. Always consult a qualified healthcare provider.
+              </p>
+            </div>
+          </div>
+        </div>
+        <!-- /panels -->
+      </div>
+      <!-- /card -->
+
+      <footer>
+        MediScan &nbsp;·&nbsp;
+        <span>Decision Support Prototype</span> &nbsp;·&nbsp; Not a Medical
+        Device
+      </footer>
+    </div>
+    <!-- /page -->
+
+    <script>
+      /* ── Tab switching ────────────────────────────────────── */
+      document.querySelectorAll(".tab-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".tab-btn").forEach((b) => {
+            b.classList.remove("active");
+            b.setAttribute("aria-selected", "false");
+          });
+          document
+            .querySelectorAll(".panel")
+            .forEach((p) => p.classList.remove("active"));
+
+          btn.classList.add("active");
+          btn.setAttribute("aria-selected", "true");
+          document
+            .getElementById("panel-" + btn.dataset.tab)
+            .classList.add("active");
+
+          hideResults();
+          hideError();
+        });
+      });
+
+      /* ── Char counter ─────────────────────────────────────── */
+      const ta = document.getElementById("symptom-input");
+      const cc = document.getElementById("char-counter");
+      ta.addEventListener("input", () => {
+        const len = ta.value.length;
+        cc.textContent = len + " / 2000";
+        cc.style.color = len > 1800 ? "var(--gold-dim)" : "var(--gray-600)";
+      });
+
+      /* ── File chooser helper ──────────────────────────────── */
+      function setupFileInput(inputId, dropId, chosenId, chosenNameId, btnId) {
+        const input = document.getElementById(inputId);
+        const drop = document.getElementById(dropId);
+        const chosen = document.getElementById(chosenId);
+        const nameSpan = document.getElementById(chosenNameId);
+        const btn = document.getElementById(btnId);
+
+        function onFile(file) {
+          if (!file) return;
+          nameSpan.textContent =
+            file.name + "  (" + (file.size / 1024).toFixed(1) + " KB)";
+          chosen.classList.add("visible");
+          btn.disabled = false;
+        }
+
+        input.addEventListener("change", () => onFile(input.files[0]));
+
+        // Drag-and-drop
+        drop.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          drop.classList.add("drag-over");
+        });
+        drop.addEventListener("dragleave", () =>
+          drop.classList.remove("drag-over"),
+        );
+        drop.addEventListener("drop", (e) => {
+          e.preventDefault();
+          drop.classList.remove("drag-over");
+          const file = e.dataTransfer.files[0];
+          if (file) {
+            // Validate extension
+            const ext = file.name.split(".").pop().toLowerCase();
+            const allowed =
+              inputId === "file-pdf"
+                ? ["pdf"]
+                : ["png", "jpg", "jpeg", "tiff", "bmp", "webp"];
+            if (!allowed.includes(ext)) {
+              showError("Unsupported file type: ." + ext);
+              return;
+            }
+            // Assign to input so we can read it
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            onFile(file);
+          }
+        });
+
+        return () => input.files[0] || null;
+      }
+
+      const getPdfFile = setupFileInput(
+        "file-pdf",
+        "drop-pdf",
+        "chosen-pdf",
+        "chosen-pdf-name",
+        "btn-pdf",
+      );
+      const getImageFile = setupFileInput(
+        "file-image",
+        "drop-image",
+        "chosen-image",
+        "chosen-image-name",
+        "btn-image",
+      );
+
+      /* ── Clear buttons ────────────────────────────────────── */
+      document
+        .getElementById("btn-clear-text")
+        .addEventListener("click", () => {
+          ta.value = "";
+          cc.textContent = "0 / 2000";
+          hideResults();
+          hideError();
+        });
+
+      function clearFile(inputId, chosenId, btnId) {
+        document.getElementById(inputId).value = "";
+        document.getElementById(chosenId).classList.remove("visible");
+        document.getElementById(btnId).disabled = true;
+        hideResults();
+        hideError();
+      }
+      document
+        .getElementById("btn-clear-pdf")
+        .addEventListener("click", () =>
+          clearFile("file-pdf", "chosen-pdf", "btn-pdf"),
+        );
+      document
+        .getElementById("btn-clear-image")
+        .addEventListener("click", () =>
+          clearFile("file-image", "chosen-image", "btn-image"),
+        );
+
+      /* ── UI helpers ───────────────────────────────────────── */
+      function showError(msg) {
+        const box = document.getElementById("error-box");
+        document.getElementById("error-msg").textContent = msg;
+        box.classList.add("visible");
+      }
+      function hideError() {
+        document.getElementById("error-box").classList.remove("visible");
+      }
+      function showResults(data) {
+        document.getElementById("results-source").textContent =
+          data.source || "—";
+        document.getElementById("results-excerpt").textContent =
+          data.excerpt || "(no text extracted)";
+
+        const container = document.getElementById("disease-cards");
+        container.innerHTML = "";
+
+        if (!data.results || data.results.length === 0) {
+          container.innerHTML =
+            '<p style="color:var(--gray-500);font-size:12px;">No predictions could be made from the extracted text.</p>';
+        } else {
+          data.results.forEach((r, i) => {
+            const rankClass = ["rank-1", "rank-2", "rank-3"][i] || "rank-3";
+            const pct = (r.confidence * 100).toFixed(1);
+            const card = document.createElement("div");
+            card.className = `disease-card ${rankClass}`;
+            card.innerHTML = `
+        <div class="card-top">
+          <div class="rank-badge">${i + 1}</div>
+          <span class="disease-name">${escHtml(r.disease)}</span>
+          <span class="confidence-pct">${pct}%</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" data-pct="${r.confidence}"></div>
+        </div>`;
+            container.appendChild(card);
+          });
+        }
+
+        document.getElementById("results-section").classList.add("visible");
+
+        // Animate bars after paint
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            document.querySelectorAll(".bar-fill").forEach((bar) => {
+              bar.style.width = parseFloat(bar.dataset.pct) * 100 + "%";
+            });
+          }, 60);
+        });
+      }
+      function hideResults() {
+        document.getElementById("results-section").classList.remove("visible");
+        document.getElementById("disease-cards").innerHTML = "";
+        // Reset bar widths
+        document
+          .querySelectorAll(".bar-fill")
+          .forEach((b) => (b.style.width = "0%"));
+      }
+      function setLoading(loaderId, btnId, on) {
+        document.getElementById(loaderId).classList.toggle("active", on);
+        document.getElementById(btnId).disabled = on;
+      }
+      function escHtml(str) {
+        return str
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      /* ── Fetch helpers ────────────────────────────────────── */
+      async function callTextApi(text) {
+        const res = await fetch("/predict/text", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+        return res.json();
+      }
+
+      async function callFileApi(file) {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/predict/file", { method: "POST", body: fd });
+        return res.json();
+      }
+
+      /* ── Button handlers ──────────────────────────────────── */
+      document
+        .getElementById("btn-text")
+        .addEventListener("click", async () => {
+          hideError();
+          hideResults();
+          const text = ta.value.trim();
+          if (!text) {
+            showError("Please enter some symptoms or clinical notes.");
+            return;
+          }
+
+          setLoading("loader-text", "btn-text", true);
+          try {
+            const data = await callTextApi(text);
+            if (data.error) showError(data.error);
+            else showResults(data);
+          } catch (e) {
+            showError("Network error — is the Flask server running?");
+          } finally {
+            setLoading("loader-text", "btn-text", false);
+          }
+        });
+
+      document.getElementById("btn-pdf").addEventListener("click", async () => {
+        hideError();
+        hideResults();
+        const file = document.getElementById("file-pdf").files[0];
+        if (!file) {
+          showError("Please select a PDF file first.");
+          return;
+        }
+
+        setLoading("loader-pdf", "btn-pdf", true);
+        try {
+          const data = await callFileApi(file);
+          if (data.error) showError(data.error);
+          else showResults(data);
+        } catch (e) {
+          showError("Network error — is the Flask server running?");
+        } finally {
+          setLoading("loader-pdf", "btn-pdf", false);
+        }
+      });
+
+      document
+        .getElementById("btn-image")
+        .addEventListener("click", async () => {
+          hideError();
+          hideResults();
+          const file = document.getElementById("file-image").files[0];
+          if (!file) {
+            showError("Please select an image file first.");
+            return;
+          }
+
+          setLoading("loader-image", "btn-image", true);
+          try {
+            const data = await callFileApi(file);
+            if (data.error) showError(data.error);
+            else showResults(data);
+          } catch (e) {
+            showError("Network error — is the Flask server running?");
+          } finally {
+            setLoading("loader-image", "btn-image", false);
+          }
+        });
+
+      /* ── Enter key shortcut for text panel ───────────────── */
+      ta.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+          document.getElementById("btn-text").click();
+        }
+      });
+    </script>
+  </body>
+</html>
